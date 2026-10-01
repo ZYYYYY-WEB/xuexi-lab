@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>岁月回响——红色精神时间轴交互式网页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+        }
+        :root {
+            --color-deep-red:#991927;
+            --color-gold:#d4af37;
+            --color-bg:#f8f5f0;
+            --color-card:#ffffff;
+            --color-text:#2c2c2c;
+        }
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+        /* 顶部头部横幅 */
+        header {
+            background: linear-gradient(135deg, #7c1420, #b82434);
+            color: #fff;
+            text-align:center;
+            padding:60px 20px;
+            position:relative;
+            overflow:hidden;
+        }
+        header::after{
+            content:"";
+            position:absolute;
+            top:0;left:0;right:0;bottom:0;
+            background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
+            background-size:24px 24px;
+            pointer-events:none;
+        }
+        header h1{
+            font-size:2.2rem;
+            margin-bottom:14px;
+        }
+        header p{
+            font-size:1.1rem;
+            opacity:0.92;
+            max-width:800px;
+            margin:0 auto;
+            line-height:1.7;
+        }
+        nav{
+            background:#fff;
+            box-shadow:0 2px 8px rgba(0,0,0,0.08);
+            position:sticky;
+            top:0;
+            z-index:99;
+        }
+        .nav-wrap{
+            max-width:1100px;
+            margin:0 auto;
+            display:flex;
+            justify-content:center;
+            gap:6px;
+            flex-wrap:wrap;
+            padding:14px 10px;
+        }
+        .nav-wrap a{
+            text-decoration:none;
+            color:var(--color-deep-red);
+            padding:8px 16px;
+            border-radius:4px;
+            transition:0.3s;
+        }
+        .nav-wrap a:hover{
+            background-color:var(--color-deep-red);
+            color:#fff;
+        }
+        .container{
+            max-width:1040px;
+            margin:0 auto;
+            padding:60px 20px;
+        }
+        .section-title{
+            text-align:center;
+            font-size:1.8rem;
+            color:var(--color-deep-red);
+            margin-bottom:48px;
+            position:relative;
+        }
+        .section-title:after{
+            content:"";
+            width:70px;
+            height:3px;
+            background-color:var(--color-gold);
+            display:block;
+            margin:12px auto 0;
+        }
+        /*时间轴样式*/
+        .timeline{
+            position:relative;
+        }
+        .timeline::before{
+            content:"";
+            position:absolute;
+            left:22px;
+            top:0;
+            bottom:0;
+            width:4px;
+            background:linear-gradient(var(--color-deep-red),#c9444f);
+        }
+        .timeline-item{
+            margin-left:52px;
+            margin-bottom:36px;
+            position:relative;
+        }
+        .timeline-item .dot{
+            width:18px;
+            height:18px;
+            border-radius:50%;
+            background-color:var(--color-gold);
+            border:4px solid var(--color-deep-red);
+            position:absolute;
+            left:-40px;
+            top:16px;
+        }
+        .spirit-card{
+            background-color:var(--color-card);
+            border-radius:10px;
+            box-shadow:0 3px 12px rgba(120,20,30,0.12);
+            overflow:hidden;
+            cursor:pointer;
+            transition:0.3s;
+        }
+        .spirit-card:hover{
+            transform: translateY(-4px);
+            box-shadow:0 6px 18px rgba(120,20,30,0.16);
+        }
+        .card-head{
+            padding:20px 24px;
+            background:linear-gradient(90deg,#99202c,#b9323f);
+            color:#fff;
+        }
+        .card-head h3{
+            font-size:1.3rem;
+        }
+        .card-body{
+            padding:0 24px;
+            max-height:0;
+            overflow:hidden;
+            transition: max-height 0.5s ease,padding 0.4s ease;
+        }
+        .spirit-card.open .card-body{
+            padding:22px 24px;
+            max-height:1200px;
+        }
+        .card-body p{
+            line-height:1.8;
+            margin-bottom:10px;
+        }
+        .card-body strong{
+            color:var(--color-deep-red);
+        }
+        /*青年回响板块*/
+        #youth{
+            background:#fff;
+            padding:50px 30px;
+            border-radius:12px;
+            margin-top:70px;
+        }
+        #youth h2{
+            text-align:center;
+            color:var(--color-deep-red);
+            margin-bottom:24px;
+        }
+        #youth p{
+            line-height:2;
+            font-size:1.05rem;
+        }
+        /*史料来源页板块*/
+        #reference{
+            margin-top:70px;
+            background:#fff;
+            padding:45px 30px;
+            border-radius:12px;
+        }
+        #reference h2{
+            text-align:center;
+            color:var(--color-deep-red);
+            margin-bottom:22px;
+        }
+        #reference ul{
+            padding-left:24px;
+            line-height:1.9;
+        }
+        footer{
+            text-align:center;
+            padding:32px;
+            background-color:#2b2b2b;
+            color:#ddd;
+            margin-top:60px;
+            font-size:0.95rem;
+        }
+        /*响应式适配手机*/
+        @media(max-width:720px){
+            header h1{
+                font-size:1.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>岁月回响——红色精神时间轴交互式网页</h1>
+        <p>循着百年奋斗足迹，回望伟大红色精神谱系，感悟信仰力量，传承时代使命</p>
+    </header>
+    <nav>
+        <div class="nav-wrap">
+            <a href="#timeline-area">红色精神时间轴</a>
+            <a href="#youth">青年时代回响</a>
+            <a href="#reference">史料来源说明</a>
+        </div>
+    </nav>
+    <div class="container">
+        <section id="timeline-area">
+            <h2 class="section-title">百年红色精神谱系</h2>
+            <div class="timeline">
+                <!--1井冈山精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>井冈山精神｜土地革命时期</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>井冈山革命根据地创建，在白色恐怖之下开辟农村包围城市的革命道路。</p>
+                            <p><strong>核心内涵：</strong>坚定信念、艰苦奋斗，实事求是、敢闯新路，依靠群众、勇于胜利。</p>
+                            <p><strong>时代价值：</strong>是中国革命在绝境当中开辟崭新道路的精神基石，彰显共产党人立足实际、不畏强敌、敢为人先的开拓品质。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--2长征精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>长征精神｜1934‑1936</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>二万五千里红军长征，跨越千山万水，完成震惊世界的战略大转移。</p>
+                            <p><strong>核心内涵：</strong>坚定理想、百折不挠，独立自主、实事求是，顾全大局、严守纪律，紧紧依靠人民、不怕艰难困苦。</p>
+                            <p><strong>时代价值：</strong>绝境之中淬炼出来的精神丰碑，代表中华民族顽强不屈、攻坚克难的奋斗底色，激励后人直面一切艰难险阻。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--3延安精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>延安精神｜抗日战争时期</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>党中央在延安十三年，开展大生产运动，坚持敌后抗战。</p>
+                            <p><strong>核心内涵：</strong>坚定正确的政治方向，解放思想、实事求是，全心全意为人民服务，自力更生、艰苦奋斗。</p>
+                            <p><strong>时代价值：</strong>是我们党走向成熟的重要精神标志，警示后世不忘初心，坚持为民宗旨，保持艰苦奋斗作风。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--4西柏坡精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>西柏坡精神｜解放战争后期</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>革命即将迎来全国胜利，党的七届二中全会在此召开，提出“两个务必”。</p>
+                            <p><strong>核心内涵：</strong>谦虚谨慎、艰苦奋斗，敢于斗争、敢于胜利，依靠群众、团结统一。</p>
+                            <p><strong>时代价值：</strong>是革命胜利前夕的清醒告诫，警示全党戒骄戒躁，永葆本色，是我们党执政兴国重要的精神源泉。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--5两弹一星精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>两弹一星精神｜新中国建设时期</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>在国家物质条件十分艰苦的环境下，科研工作者完成原子弹、氢弹、人造卫星研制。</p>
+                            <p><strong>核心内涵：</strong>热爱祖国、无私奉献，自力更生、艰苦奋斗，大力协同、勇于登攀。</p>
+                            <p><strong>时代价值：</strong>老一辈科学家隐姓埋名为国铸重器，彰显科技报国情怀，激励新时代科技自立自强。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--6改革开放精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>改革开放精神｜新时期</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>十一届三中全会之后开启改革开放伟大历程。</p>
+                            <p><strong>核心内涵：</strong>解放思想、实事求是，敢闯敢试、勇于创新，互利合作、开放包容。</p>
+                            <p><strong>时代价值：</strong>打破思想桎梏，大胆探索新路，推动国家经济社会快速发展，彰显与时俱进的改革气魄。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--7脱贫攻坚精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>脱贫攻坚精神｜新时代</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>全国上下合力打赢脱贫攻坚战，历史性解决绝对贫困问题。</p>
+                            <p><strong>核心内涵：</strong>上下同心、尽锐出战、精准务实、开拓创新、攻坚克难、不负人民。</p>
+                            <p><strong>时代价值：</strong>全面建成小康社会凝结而成的宝贵精神财富，生动诠释中国共产党始终不负人民的初心使命。</p>
+                        </div>
+                    </div>
+                </div>
+                <!--8抗疫精神-->
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="spirit-card">
+                        <div class="card-head">
+                            <h3>伟大抗疫精神｜新时代</h3>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>诞生背景：</strong>抗击新冠肺炎疫情斗争，举国同心共克时艰。</p>
+                            <p><strong>核心内涵：</strong>生命至上、举国同心、舍生忘死、尊重科学、命运与共。</p>
+                            <p><strong>时代价值：</strong>危难时刻凝聚起强大民族向心力，充分彰显我国制度优势与中华民族守望相助的民族品格。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="youth">
+            <h2>青年时代回响</h2>
+            <p>百年征程波澜壮阔，红色精神跨越时空，历久弥新。回望这条时间长河，一代代革命者、建设者、奋斗者以热血与汗水践行信仰。作为新时代大学生，我们正是红色精神的继承者、传播者、践行者。</p>
+            <br>
+            <p>在日常学习当中，我们应当坚定理想信念，锤炼过硬本领；在社会实践当中，主动参与红色宣讲、志愿服务；把先辈留下的精神力量内化于心、外化于行，将个人青春理想融入国家发展大局，以青春之我建设青春之国家，让红色血脉代代相传。</p>
+        </section>
+
+        <section id="reference">
+            <h2>史料来源说明</h2>
+            <ul>
+                <li>[1]《中国共产党简史》，中共中央党史和文献研究院编撰；</li>
+                <li>[2] 党史学习教育官方平台红色精神谱系相关资料；</li>
+                <li>[3] “学习强国”平台红色精神专题内容。</li>
+            </ul>
+            <p style="margin-top:16px;">说明：本网页所有历史内容均参考公开权威党史文献，没有虚构、歪曲历史内容，符合本次红色赛道作品提交规范。</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>作品：岁月回响——红色精神时间轴交互式网页｜第十四届全国大学生数字媒体科技作品及创意竞赛</p>
+    </footer>
+
+    <script>
+        //卡片点击展开收起逻辑
+        document.querySelectorAll(".spirit-card").forEach(card=>{
+            card.addEventListener("click",function(){
+                this.classList.toggle("open");
+            })
+        })
+        //导航平滑滚动
+        document.querySelectorAll('.nav-wrap a').forEach(link=>{
+            link.addEventListener("click",(e)=>{
+                e.preventDefault();
+                const targetId = link.getAttribute("href");
+                document.querySelector(targetId).scrollIntoView({behavior:"smooth"});
+            })
+        })
+    </script>
+</body>
+</html>
