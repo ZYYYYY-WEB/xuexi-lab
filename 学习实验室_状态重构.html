@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学习实验室：状态重构 —— 低学习投入模拟教育游戏</title>
+<style>
+  :root{
+    --canvas:#FAF6EC;
+    --surface:#FFFFFF;
+    --surface-2:#F3EEDA;
+    --ink:#33302A;
+    --muted:#7D7666;
+    --line:#E8E1CE;
+    --accent:#F5A623;
+    --accent-deep:#E08A0C;
+    --accent-ink:#4A2E00;
+    --beh:#4CAF7D;
+    --cog:#4A90D9;
+    --emo:#E26BA6;
+    --acad:#E05B4D;
+    --danger:#C63D2F;
+    --focus:#B56B00;
+    --radius:18px;
+    --radius-sm:12px;
+    --shadow:0 4px 14px rgba(90,70,30,.12);
+    --shadow-lg:0 10px 30px rgba(90,70,30,.16);
+    --font:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--font);
+    background:
+      radial-gradient(circle at 15% 10%, rgba(245,166,35,.14), transparent 34%),
+      radial-gradient(circle at 85% 20%, rgba(74,144,217,.12), transparent 30%),
+      radial-gradient(circle at 70% 90%, rgba(226,107,166,.10), transparent 32%),
+      var(--canvas);
+    color:var(--ink);
+    line-height:1.65;
+    min-height:100vh;
+  }
+  .wrap{width:min(1040px, 100% - 32px);margin:0 auto;padding:28px 0 60px}
+  h1,h2,h3{margin:0;line-height:1.25}
+  p{margin:0}
+  button{font-family:inherit;cursor:pointer}
+  :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:8px}
+
+  /* ---------- 屏幕切换 ---------- */
+  .screen{display:none}
+  .screen.active{display:block}
+  .screen:focus{outline:none}
+
+  /* ---------- 通用卡片 ---------- */
+  .card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line)}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:var(--surface-2);font-size:13px;font-weight:600}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:none;border-radius:14px;padding:12px 22px;font-size:15px;font-weight:700;
+    background:var(--accent);color:var(--accent-ink);
+    box-shadow:0 3px 0 var(--accent-deep);
+    transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  }
+  .btn:hover{transform:translateY(-1px);box-shadow:0 5px 0 var(--accent-deep)}
+  .btn:active{transform:translateY(1px);box-shadow:0 1px 0 var(--accent-deep)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:0 3px 0 var(--accent-deep)}
+  .btn.ghost{background:var(--surface-2);color:var(--ink);box-shadow:0 3px 0 #D8D0B8}
+  .btn.ghost:hover{box-shadow:0 5px 0 #D8D0B8}
+  .btn.small{padding:8px 14px;font-size:13px;border-radius:12px}
+
+  /* ---------- 开场屏 ---------- */
+  .hero{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:center;
+    background:var(--surface);border:1px solid var(--line);border-radius:24px;
+    box-shadow:var(--shadow-lg);padding:44px clamp(20px,5vw,56px);margin-bottom:26px;
+  }
+  .hero h1{font-size:clamp(28px,4.5vw,44px);letter-spacing:.5px}
+  .hero .tagline{font-size:clamp(15px,2vw,18px);color:var(--muted);margin:14px 0 22px}
+  .hero .acts{display:flex;flex-wrap:wrap;gap:12px}
+  .hero-fig{display:flex;justify-content:center}
+  .hero-fig svg{width:100%;max-width:360px;height:auto}
+  .badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+  .badge{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;font-size:13px;font-weight:700;background:var(--surface-2);border:1px dashed var(--line)}
+  .badge .dot{width:11px;height:11px;border-radius:50%}
+
+  .intro-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:26px 0}
+  .intro-card{padding:22px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .intro-card h3{font-size:17px;margin-bottom:10px}
+  .intro-card p{font-size:14.5px;color:var(--muted)}
+  .intro-card .big{font-size:26px;line-height:1}
+
+  .howto{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:30px clamp(18px,4vw,40px);box-shadow:var(--shadow)}
+  .howto h2{font-size:22px;margin-bottom:18px}
+  .howto ol{margin:0;padding-left:24px}
+  .howto li{margin-bottom:10px;font-size:15px}
+  .howto li b{color:var(--accent-deep)}
+
+  /* ---------- 游戏屏 ---------- */
+  .game-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+  .week-chip{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:800;font-size:15px}
+  .week-progress{width:min(300px,100%);height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .week-progress i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .35s ease}
+
+  .gauges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+  .gauge{padding:16px 16px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .gauge .g-top{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:9px}
+  .gauge .g-top .num{margin-left:auto;font-variant-numeric:tabular-nums}
+  .bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:999px;transition:width .45s ease}
+  .gauge.b-beh .bar i{background:var(--beh)}
+  .gauge.b-cog .bar i{background:var(--cog)}
+  .gauge.b-emo .bar i{background:var(--emo)}
+  .gauge .g-hint{margin-top:7px;font-size:12px;color:var(--muted)}
+
+  .sub-strip{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+  .mini-stat{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:13.5px;font-weight:700}
+  .mini-stat .num{font-variant-numeric:tabular-nums}
+
+  .msg{border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;background:var(--surface-2);border-left:5px solid var(--accent);font-size:14.5px}
+  .msg.ok{border-left-color:var(--beh)}
+  .msg.warn{border-left-color:var(--danger)}
+  .msg .msg-title{font-weight:800;margin-bottom:4px}
+
+  .panel-title{font-size:16px;font-weight:800;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .action{
+    text-align:left;display:flex;flex-direction:column;gap:7px;
+    background:var(--surface);border:2px solid var(--line);border-radius:var(--radius);
+    padding:14px 14px 12px;transition:border-color .12s ease, transform .12s ease, box-shadow .12s ease;
+  }
+  .action:hover:not(:disabled){border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+  .action:disabled{opacity:.55;cursor:not-allowed}
+  .action .a-icon{font-size:22px}
+  .action .a-name{font-weight:800;font-size:14.5px}
+  .action .a-desc{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .action .a-fx{font-size:12px;color:var(--muted);font-weight:600}
+
+  .event-card{border-radius:var(--radius);padding:20px 22px;margin-bottom:16px;background:var(--surface);border:2px solid var(--accent);box-shadow:var(--shadow-lg);animation:pop .28s ease}
+  @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+  .event-card .ev-title{font-size:19px;font-weight:800;margin-bottom:8px}
+  .event-card .ev-text{font-size:14.5px;color:#4A453C;margin-bottom:16px}
+  .event-choices{display:grid;gap:10px}
+  .event-choice{
+    text-align:left;display:flex;align-items:flex-start;gap:10px;
+    background:var(--surface-2);border:2px solid transparent;border-radius:14px;padding:12px 16px;font-size:14.5px;font-weight:600;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .event-choice:hover{border-color:var(--accent);background:#FFF8E8}
+  .event-choice .fx{font-size:12px;font-weight:600;color:var(--muted);margin-left:auto;text-align:right;flex-shrink:0;max-width:46%}
+
+  /* ---------- 结局屏 ---------- */
+  .ending-hero{padding:clamp(26px,5vw,48px);text-align:center;border-radius:24px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-lg);margin-bottom:22px}
+  .ending-hero .ending-badge{font-size:52px;line-height:1}
+  .ending-hero h2{font-size:clamp(24px,4vw,36px);margin:10px 0 8px}
+  .ending-hero .ending-sub{font-size:15px;color:var(--muted)}
+  .ending-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:16px}
+
+  .ending-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;margin-bottom:18px}
+  .ending-grid .card{padding:24px}
+  .ending-grid h3{font-size:17px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+  .chart-box{width:100%;height:auto;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:13px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+  .legend i{width:13px;height:13px;border-radius:4px;display:inline-block}
+
+  .timeline{list-style:none;margin:0;padding:0}
+  .timeline li{position:relative;padding:0 0 14px 22px;font-size:14px;border-bottom:1px dashed var(--line)}
+  .timeline li:last-child{border-bottom:none;padding-bottom:0}
+  .timeline li::before{content:"";position:absolute;left:4px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .timeline .t-week{font-weight:800;color:var(--accent-deep);font-size:12.5px}
+  .timeline .t-choice{color:var(--muted);font-size:13px}
+
+  .advice li{margin-bottom:10px;font-size:14.5px}
+  .research-note{margin-top:14px;padding:12px 16px;border-radius:14px;background:var(--surface-2);font-size:13px;color:var(--muted)}
+  .research-note b{color:var(--ink)}
+
+  .ending-acts{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+
+  /* ---------- 图鉴屏 ---------- */
+  .gallery-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .gallery-item{padding:20px 16px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:center}
+  .gallery-item .g-icon{font-size:30px}
+  .gallery-item h3{font-size:14px;margin:8px 0 6px}
+  .gallery-item p{font-size:12.5px;color:var(--muted)}
+  .gallery-item.locked{opacity:.55;background:var(--surface-2)}
+  .gallery-item .lock-tip{margin-top:8px;font-size:12px;color:var(--muted)}
+  .gallery-item.unlocked{border-color:var(--accent)}
+
+  /* ---------- 页脚 ---------- */
+  footer{margin-top:30px;text-align:center;font-size:12.5px;color:var(--muted)}
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width:880px){
+    .hero{grid-template-columns:1fr;gap:20px;padding:30px 20px}
+    .intro-grid{grid-template-columns:1fr}
+    .actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .gauges{grid-template-columns:1fr}
+    .ending-grid{grid-template-columns:1fr}
+    .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width:480px){
+    .actions{grid-template-columns:1fr}
+    .gallery-grid{grid-template-columns:1fr}
+  }
+
+  /* ---------- 动效偏好 ---------- */
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;transition:none !important}
+  }
+
+  /* ---------- 打印 ---------- */
+  @media print{
+    body{background:#fff}
+    .wrap{width:100%;padding:0}
+    .btn,.ending-acts,.no-print{display:none !important}
+    .card,.hero,.howto,.ending-hero,.ending-grid .card{box-shadow:none;border:1px solid #ccc}
+    .screen{display:none !important}
+    .screen.active{display:block !important}
+    h2,h3{break-after:avoid}
+    .card,.ending-hero{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= 开场屏 ================= -->
+  <section id="screen-start" class="screen active" aria-label="游戏开场">
+    <div class="hero">
+      <div>
+        <div class="pill">🎓 教育游戏 · 单机模拟 · 15–20 分钟一局</div>
+        <h1>学习实验室：状态重构</h1>
+        <p class="tagline">你是一名大一学生。你将管理一整学期的学习、生活与社交资源，应对课程、考试、同伴与老师的各种事件，亲身体验学习投入从「正常」→「下滑」→「调整」的完整过程。</p>
+        <div class="acts">
+          <button id="btn-start" class="btn">开始新学期 🚀</button>
+          <button id="btn-gallery" class="btn ghost">结局图鉴 📖</button>
+        </div>
+        <div class="badges">
+          <span class="badge"><span class="dot" style="background:var(--beh)"></span>行为投入</span>
+          <span class="badge"><span class="dot" style="background:var(--cog)"></span>认知投入</span>
+          <span class="badge"><span class="dot" style="background:var(--emo)"></span>情感投入</span>
+        </div>
+      </div>
+      <div class="hero-fig" aria-hidden="true">
+        <svg viewBox="0 0 320 260" role="img" aria-label="一张书桌上的台灯、书本和咖啡杯的卡通插画">
+          <rect x="20" y="190" width="280" height="22" rx="10" fill="#D9C89A"/>
+          <rect x="52" y="140" width="120" height="56" rx="7" fill="#FFFDF5" stroke="#C9B98C" stroke-width="3"/>
+          <line x1="70" y1="158" x2="150" y2="158" stroke="#C9B98C" stroke-width="3" stroke-linecap="round"/>
+          <line x1="70" y1="172" x2="132" y2="172" stroke="#C9B98C" stroke-width="3" stroke-linecap="round"/>
+          <path d="M196 104 L196 52 A8 8 0 0 1 204 44 L256 44 A8 8 0 0 1 264 52 L264 104 Z" fill="#F5A623" opacity=".85"/>
+          <path d="M196 104 L264 104 L196 104" fill="#E08A0C" opacity=".6"/>
+          <path d="M196 104 L238 52 L264 104 Z" fill="#FFD98E"/>
+          <circle cx="268" cy="52" r="8" fill="#FFF3D0" stroke="#E08A0C" stroke-width="3"/>
+          <circle cx="269" cy="51" r="3" fill="#E08A0C"/>
+          <rect x="228" y="118" width="46" height="26" rx="8" fill="#E26BA6" opacity=".75"/>
+          <path d="M228 118 C218 122 214 138 228 144 C242 138 238 122 228 118 Z" fill="#E26BA6" opacity=".75"/>
+          <circle cx="74" cy="96" r="34" fill="#4CAF7D" opacity=".22"/>
+          <circle cx="74" cy="96" r="17" fill="#4CAF7D" opacity=".5"/>
+          <text x="40" y="235" font-size="13" fill="#7D7666" font-family="sans-serif">今天也要好好投入学习呀</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="intro-grid">
+      <div class="intro-card">
+        <div class="big">🎯</div>
+        <h3>你要做什么</h3>
+        <p>每学期共 14 周。每周先选择一项「本周主要行动」，随后可能触发学习、人际或生活事件，你的每个选择都会改变三维投入值与学业走势。</p>
+      </div>
+      <div class="intro-card">
+        <div class="big">🧭</div>
+        <h3>三维投入是什么</h3>
+        <p><b>行为投入</b>：出勤、作业、学习时长等看得见的努力；<b>认知投入</b>：理解、思考、学习策略等脑力参与；<b>情感投入</b>：兴趣、价值感、归属感等内心状态。三者互相牵动。</p>
+      </div>
+      <div class="intro-card">
+        <div class="big">🔁</div>
+        <h3>为什么会下滑与调整</h3>
+        <p>精力透支、听不懂、拖延、同伴压力等事件会压垮某一维投入，进而引发连锁下滑；而求助、休息、调整策略又能让投入重新回升。你的结局取决于整条轨迹。</p>
+      </div>
+    </div>
+
+    <div class="howto">
+      <h2>📋 玩法说明</h2>
+      <ol>
+        <li><b>管理精力</b>：每周初恢复少量精力，学习类行动会消耗精力，精力不足时高强度行动不可选。</li>
+        <li><b>权衡取舍</b>：没有"全都要"的完美答案——提升一个维度往往以牺牲另一个为代价，连续摸鱼虽然省力，却会让投入悄悄滑落。</li>
+        <li><b>应对事件</b>：课程听不懂、作业积压、想求助又不好意思……你的选择会留下标记，影响后续事件的走向。</li>
+        <li><b>期末结算</b>：第 14 周结束后，系统按最终状态与整学期轨迹判定结局，给出研究式复盘：状态评价、典型路径解释与可操作建议。</li>
+        <li><b>结局解锁</b>：不同玩法对应不同结局，图鉴会记录你解锁过的结局。</li>
+      </ol>
+      <p style="font-size:13px;color:var(--muted);margin-top:14px">💡 数值机制参考学习投入研究中的经典框架——行为 / 认知 / 情感三维投入、投入-脱节循环与自我调节复原模型，用研究中的典型事件与规律校准，而非凭空设定的游戏数值。</p>
+    </div>
+  </section>
+
+  <!-- ================= 游戏屏 ================= -->
+  <section id="screen-game" class="screen" aria-label="游戏主界面">
+    <div class="game-head">
+      <div class="week-chip"><span>🗓️</span> 第 <span id="week-num">1</span> 周 / 共 14 周</div>
+      <div class="week-progress" aria-hidden="true"><i id="week-bar" style="width:7%"></i></div>
+      <button id="btn-quit" class="btn ghost small">退出</button>
+    </div>
+
+    <div class="gauges" aria-label="三维投入值">
+      <div class="gauge b-beh">
+        <div class="g-top"><span>🏃 行为投入</span><span class="num" id="v-beh">65</span></div>
+        <div class="bar"><i id="bar-beh" style="width:65%"></i></div>
+        <div class="g-hint" id="hint-beh">出勤、作业、学习时长</div>
+      </div>
+      <div class="gauge b-cog">
+        <div class="g-top"><span>🧠 认知投入</span><span class="num" id="v-cog">62</span></div>
+        <div class="bar"><i id="bar-cog" style="width:62%"></i></div>
+        <div class="g-hint" id="hint-cog">理解、思考、学习策略</div>
+      </div>
+      <div class="gauge b-emo">
+        <div class="g-top"><span>💗 情感投入</span><span class="num" id="v-emo">60</span></div>
+        <div class="bar"><i id="bar-emo" style="width:60%"></i></div>
+        <div class="g-hint" id="hint-emo">兴趣、价值感、归属感</div>
+      </div>
+    </div>
+
+    <div class="sub-strip" aria-label="辅助状态">
+      <span class="mini-stat">⚡ 精力 <span class="num" id="v-energy">80</span></span>
+      <span class="mini-stat">📈 学业表现 <span class="num" id="v-acad">70</span></span>
+      <span class="mini-stat">🤝 社交支持 <span class="num" id="v-social">60</span></span>
+    </div>
+
+    <div id="game-msg" class="msg" hidden>
+      <div class="msg-title" id="msg-title">提示</div>
+      <div id="msg-text"></div>
+    </div>
+
+    <div id="event-area"></div>
+
+    <div id="plan-area">
+      <div class="panel-title">🎒 本周主要行动：选择一项</div>
+      <div class="actions" id="action-list"></div>
+    </div>
+  </section>
+
+  <!-- ================= 结局屏 ================= -->
+  <section id="screen-ending" class="screen" aria-label="学期复盘">
+    <div class="ending-hero">
+      <div class="ending-badge" id="ending-badge">🏆</div>
+      <h2 id="ending-name">结局</h2>
+      <p class="ending-sub" id="ending-sub"></p>
+      <div class="ending-tags" id="ending-tags"></div>
+    </div>
+
+    <div class="ending-grid">
+      <div class="card">
+        <h3>📈 三维投入轨迹</h3>
+        <svg id="chart" class="chart-box" viewBox="0 0 720 300" role="img" aria-label="本学期行为、认知、情感投入与学业表现的走势折线图"></svg>
+        <div class="legend">
+          <span><i style="background:var(--beh)"></i>行为投入</span>
+          <span><i style="background:var(--cog)"></i>认知投入</span>
+          <span><i style="background:var(--emo)"></i>情感投入</span>
+          <span><i style="background:var(--acad)"></i>学业表现</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>🔍 状态评价</h3>
+        <p id="eval-text" style="font-size:14.5px"></p>
+        <div class="research-note" id="research-note"></div>
+      </div>
+    </div>
+
+    <div class="ending-grid">
+      <div class="card">
+        <h3>🧾 关键事件回顾</h3>
+        <ul class="timeline" id="event-timeline"></ul>
+      </div>
+      <div class="card">
+        <h3>🛤️ 研究路径解释</h3>
+        <p id="path-text" style="font-size:14.5px"></p>
+      </div>
+    </div>
+
+    <div class="card" style="padding:24px;margin-bottom:22px">
+      <h3>🛠️ 给你的现实建议</h3>
+      <ul class="advice" id="advice-list"></ul>
+    </div>
+
+    <div class="ending-acts">
+      <button id="btn-replay" class="btn">再玩一次 🔄</button>
+      <button id="btn-back-start" class="btn ghost">回到开场</button>
+      <button id="btn-gallery2" class="btn ghost">结局图鉴 📖</button>
+    </div>
+  </section>
+
+  <!-- ================= 图鉴屏 ================= -->
+  <section id="screen-gallery" class="screen" aria-label="结局图鉴">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px">
+      <h2 style="font-size:26px">📖 结局图鉴</h2>
+      <button id="btn-gallery-back" class="btn ghost small">返回</button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid"></div>
+    <p style="margin-top:18px;font-size:13.5px;color:var(--muted)">🎮 解锁记录保存在本机浏览器中（每次选择不同策略，就能解锁不同结局）。</p>
+  </section>
+
+  <footer>学习实验室：状态重构 · 低学习投入模拟教育游戏 · 单文件纯静态页面</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  try{
+    var CLAMP = function(v){ return Math.max(0, Math.min(100, Math.round(v))); };
+    var TOTAL_WEEKS = 14;
+    var INIT = { week:1, beh:65, cog:62, emo:60, energy:80, acad:70, social:60, history:[], events:[], flags:{} };
+
+    /* ============ 行动 ============ */
+    var ACTIONS = [
+      {id:"focus",    icon:"📖", name:"专注自习",  desc:"去图书馆把本周课程彻底弄懂，做笔记、刷例题", need:15, fx:{beh:9,cog:7,emo:-2,en:-28,acad:6}, log:"选择了专注自习"},
+      {id:"homework", icon:"📝", name:"完成作业",  desc:"把各科作业一项项写完，不欠账、不拖延",       need:10, fx:{beh:7,cog:3,en:-22,acad:4}, log:"选择了按时完成作业"},
+      {id:"ask",      icon:"🙋", name:"课后请教老师", desc:"主动把听不懂的地方问清楚，弄懂知识缺口",    need:10, fx:{cog:8,emo:5,beh:3,en:-10,acad:5}, log:"选择向老师请教"},
+      {id:"group",    icon:"👥", name:"参加小组学习", desc:"和同学一起讨论、互相讲解，共享思路",        need:10, fx:{cog:5,emo:5,beh:4,social:6,en:-18,acad:3}, log:"参加了小组学习"},
+      {id:"sport",    icon:"🏃", name:"运动休息",  desc:"跑步、打球、散步，让身体和脑子都松一口气",    need:0,  fx:{en:35,emo:6,beh:-2,acad:-1}, log:"选择运动休息"},
+      {id:"fun",      icon:"🎮", name:"适度娱乐",  desc:"看剧、打游戏、刷视频，轻松一下",              need:0,  fx:{en:22,emo:4,beh:-5,cog:-2,acad:-2}, log:"选择了适度娱乐"},
+      {id:"social",   icon:"🎉", name:"社交聚会",  desc:"和朋友聚会聊天，归属感和快乐拉满",            need:10, fx:{emo:9,social:8,en:-15,beh:-5,acad:-2}, log:"参加了社交聚会"},
+      {id:"slack",    icon:"🛋️", name:"摸鱼摆烂",  desc:"瘫在床上刷手机，什么都不想，什么都不做",      need:0,  fx:{en:12,beh:-8,cog:-6,emo:-3,acad:-5}, log:"选择了摸鱼摆烂"}
+    ];
+
+    /* ============ 事件 ============ */
+    function E(obj){
+      var wrap = function(arr){ arr.forEach(function(c){ if(!c.flag){ c.flag=null; } }); return arr; };
+      if(typeof obj.choices === "function"){ var orig = obj.choices; obj.choices = function(s){ return wrap(orig(s)); }; }
+      else if(Array.isArray(obj.choices)){ obj.choices = wrap(obj.choices); }
+      return obj;
+    }
+    var EVENTS = {
+      confuse_course: E({
+        title:"🤯 课程内容听不懂", text:"这周的《高等数学》你听得云里雾里：老师在黑板上写满公式，你却连第一步都没跟上。下课铃响，你看着笔记上密密麻麻的「？？？」。",
+        choices:[
+          {label:"课后自己查资料，慢慢啃", fx:{cog:6,beh:4,en:-12,acad:3}, flag:"self_study", log:"课后自学补课，硬啃下来"},
+          {label:"鼓起勇气去问老师", fx:{cog:7,emo:3,beh:3,en:-8,acad:4}, flag:"ask_teacher", log:"鼓起勇气请教老师"},
+          {label:"先放着，以后再说", fx:{cog:-5,beh:-3,emo:-2,acad:-3}, flag:"avoid_confusion", log:"回避了听不懂的课程"}
+        ]
+      }),
+      midterm: E({
+        title:"📉 期中考试出分", text:function(s){ return s.acad>=72 ? "期中成绩出来了，发挥不错，你松了口气，甚至有点小骄傲——这段时间的努力没有白费。" : "期中成绩不理想，比想象中低不少。你把卷子折起来塞进书包，心里堵堵的。"; },
+        choices:function(s){ return s.acad>=72 ? [
+          {label:"乘胜追击，继续加把劲", fx:{beh:4,cog:5,emo:3,acad:4}, log:"期中发挥不错后乘胜追击"},
+          {label:"犒劳自己，放松几天", fx:{en:15,emo:5,beh:-3,acad:-2}, log:"期中后犒劳自己、放松了几天"},
+          {label:"保持原有节奏，不骄不躁", fx:{beh:2,acad:2,en:-8}, log:"期中后保持原有节奏"}
+        ] : [
+          {label:"主动找老师分析错题", fx:{cog:7,emo:3,acad:4,en:-10}, flag:"midterm_help", log:"期中失利后主动找老师分析"},
+          {label:"情绪低落几天再说", fx:{emo:-4,beh:-4,cog:-2}, flag:"midterm_low", log:"期中失利后情绪低落了一阵"},
+          {label:"加倍刷题硬啃", fx:{beh:6,acad:2,en:-15,cog:2}, log:"期中失利后加倍刷题"}
+        ]; }
+      }),
+      difficulty: E({
+        title:"📚 课程难度升级", text:"后半学期的课程突然提速，老师语速变快、作业变难，课堂上的举手也越来越少。",
+        choices:[
+          {label:"调整学习方法，重新规划", fx:{cog:6,beh:2,acad:3}, flag:"adjust_method", log:"难度升级后主动调整学习方法"},
+          {label:"硬着头皮跟，熬过去", fx:{beh:4,en:-12,cog:-1,acad:1}, log:"难度升级后硬着头皮跟进"},
+          {label:"有点想放弃了", fx:{emo:-3,beh:-4,cog:-3,acad:-3}, flag:"want_give_up", log:"面对难度曾想放弃"}
+        ]
+      }),
+      finalnight: E({
+        title:"🌙 期末前夜", text:function(s){ var m=(s.beh+s.cog+s.emo)/3; return m<45 ? "期末周来了。你翻开课本，发现大半内容都陌生得像新书。桌上的咖啡凉了，你盯着目录发呆。" : "期末周来了。复习计划按部就班地推进，图书馆的座位还是老位置，一切都在可控范围内。"; },
+        choices:function(s){ var m=(s.beh+s.cog+s.emo)/3; return m<45 ? [
+          {label:"熬夜抱佛脚，能补多少是多少", fx:{en:-30,acad:2,emo:-4}, log:"期末前熬夜抱佛脚"},
+          {label:"按轻重缓急补重点", fx:{beh:3,cog:3,emo:2,acad:3}, flag:"last_recovery", log:"期末前冷静补重点"},
+          {label:"认命吧，这次就这样了", fx:{acad:-4,emo:-3}, log:"期末前选择了认命"}
+        ] : [
+          {label:"按计划正常复习", fx:{acad:4,cog:2,emo:2}, log:"期末前按计划正常复习"},
+          {label:"劳逸结合，保证睡眠", fx:{en:15,emo:3,acad:2}, log:"期末前劳逸结合"},
+          {label:"突击押题，赌一把", fx:{cog:-2,acad:1,beh:2}, log:"期末前突击押题"}
+        ]; }
+      }),
+      procrastinate: E({
+        title:"📚 作业拖延积压", text:"堆积了一周的作业 DDL 像雪球一样越滚越大。你打开文档，光标闪烁，一个字也写不出来。",
+        choices:[
+          {label:"熬夜通宵赶完", fx:{beh:5,acad:2,en:-30,emo:-4}, flag:"overnight", log:"通宵赶作业"},
+          {label:"拆成小块，按计划完成", fx:{beh:6,cog:3,acad:4,en:-10}, flag:"chunk", log:"把作业拆成小块完成"},
+          {label:"抄同学的应付过去", fx:{beh:1,acad:-2,cog:-4,emo:-2}, flag:"copy_hw", log:"抄作业应付过去"}
+        ]
+      }),
+      ask_help_shy: E({
+        title:"🤐 想求助又不好意思", text:"这道题你卡了很久。想问同学，又怕显得自己笨；想问老师，又怕问题太基础。对话框打了又删，删了又打。",
+        choices:[
+          {label:"鼓起勇气发出去", fx:{cog:6,emo:4,social:4,acad:3}, flag:"brave_help", log:"鼓起勇气求助"},
+          {label:"自己再硬啃两小时", fx:{cog:3,beh:2,en:-15,acad:1}, log:"独自硬啃求助过的题"},
+          {label:"算了，跳过这题", fx:{cog:-3,acad:-2,emo:-1}, log:"放弃了求助，跳过了难题"}
+        ]
+      }),
+      peers_play: E({
+        title:"🎈 同伴都在玩", text:"室友们喊着「走啊，出去耍！」你看着没写完的作业，心里有点痒：学了一周了，好像也该放松一下？",
+        choices:[
+          {label:"婉拒，按自己的节奏学", fx:{beh:4,cog:2,acad:2,emo:-1}, flag:"stick_plan", log:"婉拒同伴邀约，坚持自己的节奏"},
+          {label:"出去玩，放松一下", fx:{emo:7,social:6,en:10,beh:-4,acad:-2}, log:"跟着同伴出去玩"},
+          {label:"一边玩一边焦虑", fx:{emo:-2,en:8,beh:-3,cog:-2,acad:-2}, log:"边玩边焦虑"}
+        ]
+      }),
+      teacher_critique: E({
+        title:"📝 老师反馈批评", text:"老师批注你的作业：「这题上次讲过，怎么又错？」你盯着红字，脸有点发烫。",
+        choices:[
+          {label:"主动找老师问清楚", fx:{cog:6,emo:3,acad:3,en:-8}, log:"面对批评主动请教"},
+          {label:"自己默默多练几遍", fx:{beh:5,cog:2,acad:2,en:-12}, log:"面对批评默默多练"},
+          {label:"觉得老师在针对自己", fx:{emo:-5,beh:-2,cog:-3}, flag:"resentment", log:"觉得被针对，情绪低落"}
+        ]
+      }),
+      club_vs_study: E({
+        title:"🎭 社团活动 vs 学习", text:"社团今晚有个挺重要的活动，可你这周的学习任务还没完成。鱼和熊掌，只能选一个。",
+        choices:[
+          {label:"参加活动，学习明天补", fx:{emo:7,social:5,beh:-5,acad:-3}, log:"选择参加社团活动"},
+          {label:"以学习为重，请假", fx:{beh:4,cog:2,acad:3,social:-3}, log:"以学习为重放弃活动"},
+          {label:"去一半就溜回来", fx:{en:-12,emo:2,beh:-2,acad:-1}, log:"活动学习两边分心"}
+        ]
+      }),
+      late_night: E({
+        title:"🌃 深夜刷手机", text:"凌晨一点，你还在刷短视频。眼睛酸了，手指却停不下来——可明天还有早八的课。",
+        choices:[
+          {label:"放下手机，立刻睡觉", fx:{en:12,emo:2,beh:1}, log:"深夜果断放下手机睡觉"},
+          {label:"再看十分钟就睡", fx:{en:-8,emo:1}, log:"深夜拖延睡觉"},
+          {label:"干脆熬到天亮", fx:{en:-20,emo:-2,beh:-4,cog:-3}, log:"深夜熬夜刷手机"}
+        ]
+      }),
+      group_project: E({
+        title:"🤝 小组作业队友不给力", text:"小组作业群里安静如鸡，眼看明天要交，队友们一个比一个消失得彻底。",
+        choices:[
+          {label:"自己扛下来做完整", fx:{beh:6,acad:3,en:-18,emo:-2}, log:"独自扛下小组作业"},
+          {label:"主动沟通分工协作", fx:{cog:3,social:5,acad:2,en:-8,emo:2}, flag:"team_comm", log:"主动沟通小组分工"},
+          {label:"跟着一起摆烂", fx:{beh:-5,acad:-4,emo:-2}, log:"小组作业一起摆烂"}
+        ]
+      }),
+      achievement: E({
+        title:"🏅 获得小成就", text:"你的作业被老师当众表扬，还选作范例发到群里。你心里亮堂堂的——原来努力真的能被看见。",
+        choices:[
+          {label:"把劲头用进接下来的学习", fx:{beh:5,cog:4,emo:4,acad:3}, log:"被表扬后更有劲头学习"},
+          {label:"骄傲一下，休息几天", fx:{en:10,emo:3,beh:-4,acad:-2}, log:"被表扬后放松了几天"},
+          {label:"觉得不过如此，照常推进", fx:{beh:2,acad:2}, log:"被表扬后保持平静"}
+        ]
+      }),
+      roommate_tension: E({
+        title:"😤 室友矛盾", text:"因为作息和卫生问题，你和室友闹了点别扭。宿舍气氛很冷，谁都不想先开口。",
+        choices:[
+          {label:"主动沟通缓和关系", fx:{emo:3,social:6,en:-6}, flag:"roommate_fix", log:"主动缓和室友关系"},
+          {label:"各过各的，先冷处理", fx:{emo:-2,social:-2,en:2}, log:"室友矛盾选择冷处理"},
+          {label:"躲去图书馆学习", fx:{beh:4,cog:3,acad:3,social:-3}, log:"用学习回避室友矛盾"}
+        ]
+      }),
+      teacher_praise: E({
+        title:"💬 被老师表扬", text:"老师私聊你：「最近进步很大，继续加油。」你盯着这条消息看了好几遍。",
+        choices:[
+          {label:"回复老师，更有动力了", fx:{emo:5,cog:3,beh:3,acad:2}, log:"被表扬后动力更足"},
+          {label:"开心一整天，但不改计划", fx:{emo:3}, log:"被表扬但保持原计划"},
+          {label:"担心只是客套话", fx:{emo:-1,cog:-1}, log:"把表扬当成客套话"}
+        ]
+      })
+    };
+
+    var RANDOM_POOL = ["procrastinate","ask_help_shy","peers_play","teacher_critique","club_vs_study","late_night","group_project","achievement","roommate_tension","teacher_praise"];
+    function randCond(id, s){
+      switch(id){
+        case "procrastinate": return s.beh<60 || s.flags.avoid_confusion;
+        case "ask_help_shy":  return s.cog<55 || s.social<55;
+        case "peers_play":    return s.emo>35;
+        case "teacher_critique": return s.acad<62;
+        case "club_vs_study": return true;
+        case "late_night":    return s.energy<45;
+        case "group_project": return true;
+        case "achievement":   return s.acad>=72 && !s.flags.seen_achievement;
+        case "roommate_tension": return s.social<60;
+        case "teacher_praise": return s.cog>=62 && !s.flags.seen_teacher_praise;
+      }
+      return false;
+    }
+
+    /* ============ 结局 ============ */
+    var ENDINGS = [
+      {id:"resonance", icon:"🏆", name:"投入共振 · 全维学霸", short:"行为、认知、情感三线共振，学业一路领先",
+        path:"投入的「共振效应」：行为投入让你做得更多，认知投入让学习更有效，有效带来的成就感滋养情感投入，情感又反过来驱动更多行为——三个维度互为燃料，形成正反馈闭环。这是学习投入研究中最理想的全维投入形态。",
+        advice:["保持现状的支撑结构：固定的学习时段、有效的策略与清晰的自我价值感，缺一不可。","把「为什么学得动」写下来，做成自己的能量清单，状态波动时翻一翻。","尝试把方法教给别人——教是最好的学，也能守住认知投入的深度。"]},
+      {id:"deep", icon:"🔬", name:"认知深耕 · 深层学习", short:"想得深、学得透，但不只靠堆时间",
+        path:"深层学习路径：你的优势在认知投入——理解、联系与策略运用。行为投入保持在中上水平，情感投入稳定，形成「以思考带动行动」的投入结构。研究发现，这种以理解和意义为中心的投入比单纯的「熬时间」更抗干扰、更可持续。",
+        advice:["把深度思考的习惯迁移到薄弱科目，用「讲给自己听」检验理解。","注意给行为投入保温：思考再多，也需要稳定的练习与输出支撑。","定期做「错题归因」，把认知优势转化为成绩上的确定性。"]},
+      {id:"surface", icon:"🎭", name:"表面应付 · 做样子式投入", short:"人在场、心不在，投入只是表演",
+        path:"表面参与路径：行为指标（出勤、坐满课堂）看起来正常，认知与情感却在缺席。研究将这类状态称为「表面参与」——多由外部压力驱动，缺少内在动机。它的代价是：投入既不带来理解，也不带来满足，且极易在压力消失后断崖式滑落。",
+        advice:["问自己：这周我真正「学会」了什么，而不只是「完成」了什么？","给每门课找一个属于你自己的小目标，把「应付」换成「我想弄懂」。","每周留一次深度专注时段，体验「理解带来的快乐」，重建内在动机。"]},
+      {id:"passion", icon:"🔥", name:"热情有余 · 行动不足", short:"兴趣不缺，行动跟不上",
+        path:"情感先行路径：你对学习有热情、有兴趣、有归属，但行为与认知投入没能跟上热情的脚步。兴趣如果始终没有转化为具体行动和持续练习，会在现实反馈（成绩、进度）面前逐渐受挫，热情本身也会慢慢熄灭。",
+        advice:["把热情拆成本周可执行的三个小行动，比如每天 25 分钟专注。","用「成果」喂养热情：每完成一个任务，就在成就感上做加法。","找一个同伴互相打卡，用外部节拍补齐行为投入的短板。"]},
+      {id:"social", icon:"🎊", name:"社交代偿 · 热闹背后的空缺", short:"归属感很满，学业却开了天窗",
+        path:"社交代偿路径：你将大量时间与心理能量投向关系和社交，暂时获得了归属与支持，但学业缺口越积越大。归属感是情感投入的重要来源，却不能替代行为与认知投入——「被大家喜欢」和「把书读好」在学期账单上并不互相抵消。",
+        advice:["把社交与学习结合：约学习局、自习搭子，让关系为投入服务。","每周固定留出「不被打扰的学习时段」，并提前告诉朋友。","觉察自己在逃避什么：社交是否正在替代某个让你焦虑的任务？"]},
+      {id:"spiral", icon:"🌀", name:"脱节螺旋 · 越滑越深", short:"行为退缩 → 认知回避 → 情感疏离的恶性循环",
+        path:"脱节螺旋路径：研究中的「投入-脱节」模型发现，学习投入下滑往往不是单点崩溃，而是链条式的：行为上的退缩（不写作业、不听课）切断了认知参与的机会，跟不上又让情感投入受损（失去兴趣、价值感、自我怀疑），进一步加剧行为退缩——「越不学越不想学」的闭环就这样形成。",
+        advice:["先别盯着成绩，从「最小行为」重启：只做 10 分钟作业、只去一节课。","打破孤立：向任课老师、辅导员或可信的同学开口，求助本身就能切断回避链条。","把「我完了」换成「我暂时卡住了」，给自己的状态留一个出口。"]},
+      {id:"rebound", icon:"🌱", name:"主动调整 · 触底反弹", short:"下滑不可怕，你识别状态并把自己拉了回来",
+        path:"自我调节复原路径：你经历了投入下滑，但识别到状态不对后主动改变了行动策略——这就是学习自我调节能力的体现。投入的下降不是失败，能否在低谷中调整策略、重新激活行为-认知-情感链条，才是研究中最有迁移价值的成长信号。",
+        advice:["复盘「什么把你拉回来了」：求助？休息？调整方法？把它固化成你的应急按钮。","把这次触底写进自己的经验库：下次再出现前兆，就能提前响应。","保持警惕：复原不是终点，建立可持续的作息与求助网络才能防复发。"]},
+      {id:"steady", icon:"🌤️", name:"波动中的坚持", short:"没有大起大落，也没有彻底脱节",
+        path:"平稳坚持路径：绝大多数人的学习投入本来就是波动的——今天有劲、明天萎靡才是常态。你在一学期的起伏中维持了基本投入、没有彻底脱节，也没有被某一次挫败击穿。这种在波动中保持底线能力的「韧性」，本身就是可持续投入最重要的底层结构。",
+        advice:["给波动留空间：允许自己每周有一个低效日，不把偶发松懈灾难化。","识别你的个人周期：什么时候状态好，就把难任务排在什么时候。","每四周做一次小复盘，微调节奏，而不是等学期末才看方向。"]}
+    ];
+
+    /* ============ DOM ============ */
+    var $ = function(id){ return document.getElementById(id); };
+    var el = {
+      start:$("screen-start"), game:$("screen-game"), ending:$("screen-ending"), gallery:$("screen-gallery"),
+      weekNum:$("week-num"), weekBar:$("week-bar"),
+      vBeh:$("v-beh"), vCog:$("v-cog"), vEmo:$("v-emo"), vEnergy:$("v-energy"), vAcad:$("v-acad"), vSocial:$("v-social"),
+      barBeh:$("bar-beh"), barCog:$("bar-cog"), barEmo:$("bar-emo"),
+      hintBeh:$("hint-beh"), hintCog:$("hint-cog"), hintEmo:$("hint-emo"),
+      msg:$("game-msg"), msgTitle:$("msg-title"), msgText:$("msg-text"),
+      eventArea:$("event-area"), planArea:$("plan-area"), actionList:$("action-list"),
+      endingBadge:$("ending-badge"), endingName:$("ending-name"), endingSub:$("ending-sub"), endingTags:$("ending-tags"),
+      chart:$("chart"), evalText:$("eval-text"), researchNote:$("research-note"),
+      eventTimeline:$("event-timeline"), pathText:$("path-text"), adviceList:$("advice-list"),
+      galleryGrid:$("gallery-grid")
+    };
+
+    var S = null;       // 当前局状态
+    var usedEvents = []; // 本局已触发事件 id
+    var UNLOCK_KEY = "studyLab_endings_v1";
+
+    /* ============ 屏幕切换 ============ */
+    function showScreen(name){
+      el.start.classList.remove("active");
+      el.game.classList.remove("active");
+      el.ending.classList.remove("active");
+      el.gallery.classList.remove("active");
+      if(name==="start"){ el.start.classList.add("active"); }
+      if(name==="game"){ el.game.classList.add("active"); }
+      if(name==="ending"){ el.ending.classList.add("active"); }
+      if(name==="gallery"){ el.gallery.classList.add("active"); }
+      window.scrollTo({top:0, behavior:"auto"});
+    }
+
+    /* ============ 状态初始化 ============ */
+    function newGame(){
+      S = {
+        week:1, beh:INIT.beh, cog:INIT.cog, emo:INIT.emo,
+        energy:INIT.energy, acad:INIT.acad, social:INIT.social,
+        history:[], events:[], flags:{}
+      };
+      usedEvents = [];
+    }
+
+    function pushPoint(){
+      S.history.push({w:S.week, beh:S.beh, cog:S.cog, emo:S.emo, acad:S.acad});
+    }
+
+    /* ============ 渲染游戏 ============ */
+    function renderGame(){
+      el.weekNum.textContent = S.week;
+      el.weekBar.style.width = (S.week/TOTAL_WEEKS*100) + "%";
+      setGauge(el.vBeh, el.barBeh, S.beh);
+      setGauge(el.vCog, el.barCog, S.cog);
+      setGauge(el.vEmo, el.barEmo, S.emo);
+      el.vEnergy.textContent = S.energy;
+      el.vAcad.textContent = S.acad;
+      el.vSocial.textContent = S.social;
+      el.hintBeh.textContent = gradeText(S.beh, "行为");
+      el.hintCog.textContent = gradeText(S.cog, "认知");
+      el.hintEmo.textContent = gradeText(S.emo, "情感");
+
+      el.eventArea.innerHTML = "";
+
+      // 行动列表
+      var html = "";
+      ACTIONS.forEach(function(a){
+        var disabled = a.need > S.energy ? " disabled" : "";
+        html += '<button class="action" data-action="'+a.id+'"'+disabled+'>'
+             + '<span class="a-icon">'+a.icon+'</span>'
+             + '<span class="a-name">'+a.name+'</span>'
+             + '<span class="a-desc">'+a.desc+'</span>'
+             + '<span class="a-fx">'+fxText(a.fx)+(a.need>0?' · 需精力'+a.need:'')+'</span>'
+             + '</button>';
+      });
+      el.actionList.innerHTML = html;
+    }
+
+    function setGauge(numEl, barEl, v){
+      numEl.textContent = v;
+      barEl.style.width = v + "%";
+    }
+
+    function gradeText(v, dim){
+      if(v>=80) return dim+"投入：状态很好，正反馈明显";
+      if(v>=60) return dim+"投入：基本正常，保持节奏";
+      if(v>=40) return dim+"投入：在波动，值得留意";
+      return dim+"投入：明显偏低，需要干预";
+    }
+
+    function fxText(fx){
+      var parts = [];
+      if(fx.beh) parts.push("行为"+(fx.beh>0?"+":"")+fx.beh);
+      if(fx.cog) parts.push("认知"+(fx.cog>0?"+":"")+fx.cog);
+      if(fx.emo) parts.push("情感"+(fx.emo>0?"+":"")+fx.emo);
+      if(fx.acad) parts.push("学业"+(fx.acad>0?"+":"")+fx.acad);
+      if(fx.social) parts.push("社交"+(fx.social>0?"+":"")+fx.social);
+      if(fx.en) parts.push("精力"+(fx.en>0?"+":"")+fx.en);
+      return parts.join(" · ");
+    }
+
+    /* ============ 行动选择 ============ */
+    function applyFx(fx){
+      S.beh = CLAMP(S.beh + (fx.beh||0));
+      S.cog = CLAMP(S.cog + (fx.cog||0));
+      S.emo = CLAMP(S.emo + (fx.emo||0));
+      S.acad = CLAMP(S.acad + (fx.acad||0));
+      S.social = CLAMP(S.social + (fx.social||0));
+      S.energy = CLAMP(S.energy + (fx.en||0));
+    }
+
+    function pickAction(id){
+      var a = null;
+      ACTIONS.forEach(function(x){ if(x.id===id){ a=x; } });
+      if(!a) return;
+      if(a.need > S.energy){ return; }
+
+      applyFx(a.fx);
+
+      // 学业自动微调：投入对成绩的长期牵引
+      var drift = (S.beh-55)*0.12 + (S.cog-55)*0.08 + (S.emo-55)*0.06;
+      S.acad = CLAMP(S.acad + drift);
+
+      // 周初精力自然恢复（本周开始时已计入）
+      showMsg("本周回顾", a.log+"。"+fxText(a.fx)+" 学业"+(drift>=0?"+":"")+Math.round(drift), "ok");
+      el.planArea.style.display = "none";
+      renderGame();
+      setTimeout(function(){ afterAction(); }, 700);
+    }
+
+    function showMsg(title, text, kind){
+      el.msg.hidden = false;
+      el.msg.className = "msg" + (kind==="ok"?" ok":(kind==="warn"?" warn":""));
+      el.msgTitle.textContent = title;
+      el.msgText.textContent = text;
+    }
+
+    function afterAction(){
+      // 固定事件优先
+      var evId = null;
+      if(S.week===2){ evId="confuse_course"; }
+      else if(S.week===5){ evId="midterm"; }
+      else if(S.week===9){ evId="difficulty"; }
+      else if(S.week===13){ evId="finalnight"; }
+      else if(S.week>=3 && S.week<=12){
+        var windows = [3,4,6,7,8,10,11,12];
+        if(windows.indexOf(S.week)>=0 && Math.random()<0.62){
+          var cands = RANDOM_POOL.filter(function(id){ return usedEvents.indexOf(id)<0 && randCond(id,S); });
+          if(cands.length){ evId = cands[Math.floor(Math.random()*cands.length)]; }
+        }
+      }
+      if(evId){ showEvent(evId); }
+      else { endWeek(); }
+    }
+
+    function showEvent(evId){
+      usedEvents.push(evId);
+      var ev = EVENTS[evId];
+      var text = typeof ev.text === "function" ? ev.text(S) : ev.text;
+      var choices = typeof ev.choices === "function" ? ev.choices(S) : ev.choices;
+      renderGame();
+      var html = '<div class="event-card">'
+        + '<div class="ev-title">'+ev.title+'</div>'
+        + '<div class="ev-text">'+text+'</div>'
+        + '<div class="event-choices">';
+      choices.forEach(function(c, i){
+        html += '<button class="event-choice" data-ev="'+evId+'" data-i="'+i+'">'
+             + '<span>'+c.label+'</span><span class="fx">'+fxText(c.fx)+'</span>'
+             + '</button>';
+      });
+      html += '</div></div>';
+      el.eventArea.innerHTML = html;
+    }
+
+    function chooseEvent(evId, i){
+      var ev = EVENTS[evId];
+      var choices = typeof ev.choices === "function" ? ev.choices(S) : ev.choices;
+      var c = choices[i];
+      applyFx(c.fx);
+      if(c.flag){ S.flags[c.flag] = true; }
+      S.flags["seen_"+evId] = true;
+      S.events.push({w:S.week, title:ev.title.replace(/^\S+\s/,""), choice:c.log});
+      showMsg(ev.title.replace(/^\S+\s/,""), "你的选择："+c.log+"。"+fxText(c.fx), "ok");
+      el.eventArea.innerHTML = "";
+      endWeek();
+    }
+
+    function endWeek(){
+      // 结算本周：若已到最后一周则结局，否则进入下周
+      pushPoint();
+      if(S.week >= TOTAL_WEEKS){
+        renderGame();
+        setTimeout(function(){ finishGame(); }, 600);
+        return;
+      }
+      S.week += 1;
+      S.energy = CLAMP(S.energy + 22); // 周初自然恢复
+      el.planArea.style.display = "";
+      renderGame();
+    }
+
+    /* ============ 结局 ============ */
+    function mean3(){ return (S.beh+S.cog+S.emo)/3; }
+
+    function evaluateEnding(){
+      var m = mean3();
+      var startMean = S.history[0] ? (S.history[0].beh+S.history[0].cog+S.history[0].emo)/3 : m;
+      // 触底反弹：中期有明显低谷，后期显著回升
+      var lowVal = 99, lowIdx = 0;
+      S.history.forEach(function(p,i){ if(i>=1 && (p.beh+p.cog+p.emo)/3 < lowVal){ lowVal=(p.beh+p.cog+p.emo)/3; lowIdx=i; } });
+      var afterLow = lowVal;
+      for(var j=lowIdx+1;j<S.history.length;j++){ var mm=(S.history[j].beh+S.history[j].cog+S.history[j].emo)/3; if(mm>afterLow){ afterLow=mm; } }
+      var rebound = (afterLow - lowVal >= 12) && (m >= startMean - 4);
+
+      if(m < 38 || S.acad < 42) return "spiral";
+      if(m >= 75 && S.acad >= 80) return "resonance";
+      if(S.cog >= 70 && S.beh >= 55 && S.emo >= 50) return "deep";
+      if(S.beh >= 70 && (S.cog < 50 || S.emo < 50)) return "surface";
+      if(S.emo >= 70 && S.beh < 55) return "passion";
+      if(S.social >= 75 && S.acad < 55) return "social";
+      if(rebound) return "rebound";
+      return "steady";
+    }
+
+    function unlock(id){
+      try{
+        var list = JSON.parse(localStorage.getItem(UNLOCK_KEY) || "[]");
+        if(list.indexOf(id)<0){ list.push(id); localStorage.setItem(UNLOCK_KEY, JSON.stringify(list)); }
+      }catch(e){}
+    }
+    function loadUnlocks(){
+      try{ return JSON.parse(localStorage.getItem(UNLOCK_KEY) || "[]"); }catch(e){ return []; }
+    }
+
+    function finishGame(){
+      var id = evaluateEnding();
+      var end = null;
+      ENDINGS.forEach(function(x){ if(x.id===id){ end=x; } });
+      unlock(id);
+      renderEnding(end);
+      showScreen("ending");
+    }
+
+    function renderEnding(end){
+      var m = mean3();
+      el.endingBadge.textContent = end.icon;
+      el.endingName.textContent = end.name;
+      el.endingSub.textContent = end.short;
+      el.endingTags.innerHTML = "";
+      var tags = ["行为"+S.beh, "认知"+S.cog, "情感"+S.emo, "学业"+S.acad];
+      tags.forEach(function(t){
+        var sp=document.createElement("span"); sp.className="pill"; sp.textContent=t; el.endingTags.appendChild(sp);
+      });
+
+      // 状态评价
+      var ev = "";
+      if(m>=75){ ev="本学期你的三维投入整体处于高位：行为、认知、情感相互支撑，学习对你来说既是投入也是回报。"; }
+      else if(m>=55){ ev="本学期你的三维投入处于中等水平，有高峰也有低谷，属于大多数学生的真实状态。关键看低谷时你如何应对。"; }
+      else if(m>=38){ ev="本学期你的三维投入整体偏低，学习时常处于「推着走」的状态，存在明显的耗竭或回避信号。"; }
+      else { ev="本学期你的三维投入跌入低位，行为、认知与情感几乎同时熄火，处于典型的投入脱节状态。"; }
+      el.evalText.textContent = ev;
+
+      // 研究依据说明
+      el.researchNote.innerHTML = '<b>研究依据</b>：三维投入（行为 / 认知 / 情感）与「投入-脱节」循环来自学习投入研究的经典框架；本局数值与事件影响由这些规律校准，用于模拟真实情境下的投入变化，并非随机游戏数值。';
+
+      // 曲线图
+      drawChart();
+
+      // 关键事件回顾
+      var tl = "";
+      if(S.events.length===0){ tl = '<li><span class="t-week">无关键事件</span> 这一学期风平浪静，没有触发需要抉择的时刻。</li>'; }
+      else{
+        S.events.forEach(function(e){
+          tl += '<li><div class="t-week">第 '+e.w+' 周 · '+e.title+'</div><div class="t-choice">'+e.choice+'</div></li>';
+        });
+      }
+      el.eventTimeline.innerHTML = tl;
+
+      // 研究路径
+      el.pathText.textContent = end.path;
+
+      // 建议
+      var adv = "";
+      end.advice.forEach(function(a){ adv += "<li>"+a+"</li>"; });
+      el.adviceList.innerHTML = adv;
+    }
+
+    /* ============ SVG 曲线 ============ */
+    function drawChart(){
+      var W=720, H=300, padL=42, padR=16, padT=16, padB=30;
+      var n = S.history.length;
+      var innerW = W-padL-padR, innerH = H-padT-padB;
+      var x = function(i){ return padL + (n>1 ? i/(n-1)*innerW : innerW/2); };
+      var y = function(v){ return padT + (100-v)/100*innerH; };
+
+      var series = [
+        {key:"beh", color:"var(--beh)", label:"行为投入"},
+        {key:"cog", color:"var(--cog)", label:"认知投入"},
+        {key:"emo", color:"var(--emo)", label:"情感投入"},
+        {key:"acad", color:"var(--acad)", label:"学业表现"}
+      ];
+      var s = "";
+      // 网格
+      for(var g=0; g<=4; g++){
+        var gy = padT + g/4*innerH;
+        s += '<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'" stroke="#E8E1CE" stroke-width="1"/>';
+        s += '<text x="8" y="'+(gy+4)+'" font-size="10" fill="#9A9384" font-family="sans-serif">'+(100-g*25)+'</text>';
+      }
+      // 周标签
+      for(var w=0; w<n; w++){
+        var lx = x(w);
+        s += '<text x="'+lx+'" y="'+(H-8)+'" font-size="10" text-anchor="middle" fill="#9A9384" font-family="sans-serif">'+(w+1)+'</text>';
+      }
+      series.forEach(function(se){
+        var path = "";
+        S.history.forEach(function(p,i){
+          var px = x(i), py = y(p[se.key]);
+          path += (i===0?"M":"L") + px.toFixed(1)+","+py.toFixed(1)+" ";
+        });
+        s += '<path d="'+path.trim()+'" fill="none" stroke="'+se.color+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+        // 端点圆点
+        var last = S.history[n-1];
+        s += '<circle cx="'+x(n-1).toFixed(1)+'" cy="'+y(last[se.key]).toFixed(1)+'" r="4.5" fill="'+se.color+'" stroke="#FFF" stroke-width="2"/>';
+      });
+      el.chart.innerHTML = s + '<text x="'+padL+'" y="14" font-size="11" fill="#9A9384" font-family="sans-serif">第 1 ~ '+n+' 周走势（0–100）</text>';
+    }
+
+    /* ============ 图鉴 ============ */
+    function renderGallery(){
+      var unlocked = loadUnlocks();
+      var html = "";
+      ENDINGS.forEach(function(end){
+        var isUn = unlocked.indexOf(end.id)>=0;
+        html += '<div class="gallery-item '+(isUn?"unlocked":"locked")+'">'
+             + '<div class="g-icon">'+(isUn?end.icon:"🔒")+'</div>'
+             + '<h3>'+(isUn?end.name:"？？？")+'</h3>'
+             + '<p>'+(isUn?end.short:"玩出这个结局才能解锁")+'</p>'
+             + (isUn?'':'<div class="lock-tip">调整策略，多玩几局试试</div>')
+             + '</div>';
+      });
+      el.galleryGrid.innerHTML = html;
+    }
+
+    /* ============ 事件绑定 ============ */
+    $("btn-start").addEventListener("click", function(){ newGame(); el.planArea.style.display=""; showScreen("game"); renderGame(); });
+    $("btn-quit").addEventListener("click", function(){ showScreen("start"); });
+    $("btn-replay").addEventListener("click", function(){ newGame(); el.planArea.style.display=""; showScreen("game"); renderGame(); });
+    $("btn-back-start").addEventListener("click", function(){ showScreen("start"); });
+    $("btn-gallery").addEventListener("click", function(){ renderGallery(); showScreen("gallery"); });
+    $("btn-gallery2").addEventListener("click", function(){ renderGallery(); showScreen("gallery"); });
+    $("btn-gallery-back").addEventListener("click", function(){ showScreen("start"); });
+
+    el.actionList.addEventListener("click", function(ev){
+      var btn = ev.target.closest(".action");
+      if(btn && !btn.disabled){ pickAction(btn.getAttribute("data-action")); }
+    });
+    el.eventArea.addEventListener("click", function(ev){
+      var btn = ev.target.closest(".event-choice");
+      if(btn){ chooseEvent(btn.getAttribute("data-ev"), parseInt(btn.getAttribute("data-i"),10)); }
+    });
+
+  }catch(err){
+    if(window.console){ console.error("游戏脚本初始化失败：", err); }
+  }
+})();
+</script>
+</body>
+</html>
